@@ -6,6 +6,8 @@ translator = Translator()
 
 user_info = {}
 
+# TODO: хорошяа работа с документацией, только давайте опишем параметры, что такое user_message во всех функциях.
+# Давайте опишем, например, где-то это максимальное количество, где-то цена и так далее.
 
 def lowprice_func(bot, user_message):
     def main(user_message):
@@ -24,6 +26,7 @@ def lowprice_func(bot, user_message):
     def photos(user_message):
         """Функция, проверяет правильность введенного количества отелей,
         а также запрашивает информацию о необходимости фотографий"""
+        # TODO: вынесем число как константу
         if int(user_message.text) > 5:
             bot.send_message(user_message.chat.id, 'Вы ввели неправильное число.')
             return hotel_count(user_message)
@@ -43,6 +46,7 @@ def lowprice_func(bot, user_message):
             bot.register_next_step_handler(photo_num, result_with_photo)
         else:
             user_info['need_photo'] = user_message.text
+            # TODO: все ссылки лучше вынести отдельно, передавая в них требуемые параметры
             url = "https://hotels4.p.rapidapi.com/locations/v2/search"
             querystring = {"query": user_info['city']}
             headers = {
@@ -65,6 +69,8 @@ def lowprice_func(bot, user_message):
             data = json.loads(hotel_response.text)
             result = data['data']['body']["searchResults"]["results"]
             for i in range(int(user_info['hotel_count'])):
+                # TODO: тут лучше вынести строку к отправке в отдельную переменную, чтобы при передаче
+                # не городить кучу строк
                 bot.send_message(user_message.chat.id, (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
                                                        '\nАдрес: ' + result[i]["address"]["streetAddress"] + ', ' +
                                                         result[i]["address"]["locality"] + ', ' +
