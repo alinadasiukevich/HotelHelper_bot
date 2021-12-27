@@ -1,32 +1,43 @@
-
 import requests
 import json
 from googletrans import Translator
 from telebot.types import InputMediaPhoto
+import config
+
+
 translator = Translator()
-
 user_info = {}
-
+url_locations = "https://hotels4.p.rapidapi.com/locations/v2/search"
+url_properties = "https://hotels4.p.rapidapi.com/properties/list"
+url_get_photos = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
 
 def highprice_func(bot, user_message):
     """Функция, выводит самые дорогие отели, согласно заданным параметрам пользователя"""
+
     def main(user_message):
-        """Функиция, получает название города"""
+        """Функция, получает название города
+
+        user_message (str): команда /highprice"""
         city = bot.send_message(user_message.chat.id, 'Введите город, в котором ищите отель: ')
 
         bot.register_next_step_handler(city, hotel_count)
 
     def hotel_count(user_message):
-        """Функиция, получает количество отелей"""
-        user_info['city'] = (translator.translate(user_message.text, dest='en')).text.lower()
+        """Функция, получает количество отелей
+
+        user_message (str): Название города"""
+        user_info['city'] = (translator.translate(user_message.text.lower(), dest='en')).text
         hotels = bot.send_message(user_message.chat.id,
                                   'Введите количество отелей, которые необходимо вывести в результате (не больше 5): ')
         bot.register_next_step_handler(hotels, photos)
 
     def photos(user_message):
         """Функция, проверяет правильность введенного количества отелей,
-        а также запрашивает информацию о необходимости фотографий"""
-        if int(user_message.text) > 5:
+        а также запрашивает информацию о необходимости фотографий
+
+        user_message (int): количество отелей"""
+        HOTELS_NUM = int(user_message.text)
+        if HOTELS_NUM > 5:
             bot.send_message(user_message.chat.id, 'Вы ввели неправильное число.')
             return hotel_count(user_message)
         user_info['hotel_count'] = user_message.text
@@ -36,7 +47,9 @@ def highprice_func(bot, user_message):
     def num_photo(user_message):
         """Функция, в случае необходимости, узнает необходимое количество
         фотографий, если фотографии не нужны, выводит результат
-        работы телграм-бота без фотографий"""
+        работы телграм-бота без фотографий
+
+        user_message (str): необходимость фотографий (да/нет)"""
         if user_message.text.lower() == 'да':
             user_info['need_photo'] = user_message.text
             photo_num = bot.send_message(user_message.chat.id,
@@ -45,30 +58,23 @@ def highprice_func(bot, user_message):
             bot.register_next_step_handler(photo_num, result_with_photo)
         else:
             user_info['need_photo'] = user_message.text
-            url = "https://hotels4.p.rapidapi.com/locations/v2/search"
             querystring = {"query": user_info['city']}
-            headers = {
-                'x-rapidapi-host': "hotels4.p.rapidapi.com",
-                'x-rapidapi-key': "c69c1872abmshf497846dcd25465p192f04jsn091745b8c356"
-            }
-            response = requests.request("GET", url, headers=headers, params=querystring)
+            response = requests.request("GET", url_locations, headers=config.headers, params=querystring)
             data = json.loads(response.text)
             user_destinationId = data['suggestions'][0]['entities'][0]['destinationId']
 
-            url = "https://hotels4.p.rapidapi.com/properties/list"
+
             querystring = {"destinationId": user_destinationId, "pageNumber": "1", "pageSize": user_info['hotel_count'],
-                           "checkIn": "2022-01-15", "checkOut": "2022-01-16", "adults1": "1", "sortOrder": "PRICE_HIGHEST_FIRST",
-                           "currency": "USD"}
-            headers = {
-                'x-rapidapi-host': "hotels4.p.rapidapi.com",
-                'x-rapidapi-key': "c69c1872abmshf497846dcd25465p192f04jsn091745b8c356"
-            }
-            hotel_response = requests.request("GET", url, headers=headers, params=querystring)
+                           "checkIn": "2022-01-15", "checkOut": "2022-01-16", "adults1": "1",
+                           "sortOrder": "PRICE_HIGHEST_FIRST", "currency": "USD"}
+
+            hotel_response = requests.request("GET", url_properties, headers=config.headers, params=querystring)
             data = json.loads(hotel_response.text)
             result = data['data']['body']["searchResults"]["results"]
             for i in range(int(user_info['hotel_count'])):
+
                 if 'streetAddress' in result[i]['address']:
-                    bot.send_message(user_message.chat.id, (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
+                    expensive_hotels = (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
                                                        '\nАдрес: ' + result[i]['address']['streetAddress'] + ', ' +
                                                         result[i]['address']['locality'] + ', ' +
                                                         result[i]['address']['postalCode'] + ', ' +
@@ -77,21 +83,27 @@ def highprice_func(bot, user_message):
                                                         ' расстояние: ' + ' ' + result[i]["landmarks"][0]['distance'] +
                                                         '\nОт ' + result[i]["landmarks"][1]['label'] + ' ' +
                                                         ' расстояние: ' + ' ' + result[i]["landmarks"][1]['distance'] +
-                                                        '\nЦена: ' + result[i]['ratePlan']['price']['current']))
+                                                        '\nЦена: ' + result[i]['ratePlan']['price']['current'])
+                    bot.send_message(user_message.chat.id, expensive_hotels)
                 else:
-                    bot.send_message(user_message.chat.id, (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
+                    expensive_hotels = (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
                                                             '\nОт ' + result[i]["landmarks"][0]['label'] + ' ' +
                                                             ' расстояние: ' + ' ' + result[i]["landmarks"][0][
                                                                 'distance'] +
                                                             '\nОт ' + result[i]["landmarks"][1]['label'] + ' ' +
                                                             ' расстояние: ' + ' ' + result[i]["landmarks"][1][
                                                                 'distance'] +
-                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current']))
+                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current'])
+                    bot.send_message(user_message.chat.id, expensive_hotels)
+
     def result_with_photo(user_message):
         """Функция, проверяет правильность введенного количества фотографий,
         в случае правильного ввода, выводит результат работы телеграм-бота
-        с фотографиями"""
-        if int(user_message.text) > 5:
+        с фотографиями
+
+        user_message (int): количество фотографий"""
+        PHOTO_NUM = int(user_message.text)
+        if PHOTO_NUM > 5:
             bot.send_message(user_message.chat.id, 'Вы ввели неправильное число.')
             photo_num = bot.send_message(user_message.chat.id,
                                          'Введите количество фотографий, '
@@ -99,33 +111,26 @@ def highprice_func(bot, user_message):
             bot.register_next_step_handler(photo_num, result_with_photo)
         else:
             user_info['num_photo'] = user_message.text
-            url = "https://hotels4.p.rapidapi.com/locations/v2/search"
+
             querystring = {"query": user_info['city']}
-            headers = {
-                'x-rapidapi-host': "hotels4.p.rapidapi.com",
-                'x-rapidapi-key': "c69c1872abmshf497846dcd25465p192f04jsn091745b8c356"
-            }
-            response = requests.request("GET", url, headers=headers, params=querystring)
+
+            response = requests.request("GET", url_locations, headers=config.headers, params=querystring)
             data = json.loads(response.text)
             user_destinationId = data['suggestions'][0]['entities'][0]['destinationId']
 
-            url = "https://hotels4.p.rapidapi.com/properties/list"
+
             querystring = {"destinationId": user_destinationId, "pageNumber": "1", "pageSize": user_info['hotel_count'],
-                           "checkIn": "2022-01-15", "checkOut": "2022-01-16", "adults1": "1", "sortOrder": "PRICE_HIGHEST_FIRST",
-                           "currency": "USD"}
-            headers = {
-                'x-rapidapi-host': "hotels4.p.rapidapi.com",
-                'x-rapidapi-key': "c69c1872abmshf497846dcd25465p192f04jsn091745b8c356"
-            }
-            hotel_response = requests.request("GET", url, headers=headers, params=querystring)
+                           "checkIn": "2022-01-15", "checkOut": "2022-01-16", "adults1": "1",
+                           "sortOrder": "PRICE_HIGHEST_FIRST", "currency": "USD"}
+
+            hotel_response = requests.request("GET", url_properties, headers=config.headers, params=querystring)
             data = json.loads(hotel_response.text)
             result = data['data']['body']["searchResults"]["results"]
-
 
             for i in range(int(user_info['hotel_count'])):
 
                 if 'streetAddress' in result[i]['address']:
-                    bot.send_message(user_message.chat.id, (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
+                    expensive_hotels_photo = (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
                                                             '\nАдрес: ' + result[i]['address']['streetAddress'] + ', ' +
                                                             result[i]['address']['locality'] + ', ' +
                                                             result[i]['address']['postalCode'] + ', ' +
@@ -136,30 +141,28 @@ def highprice_func(bot, user_message):
                                                             '\nОт ' + result[i]["landmarks"][1]['label'] + ' ' +
                                                             ' расстояние: ' + ' ' + result[i]["landmarks"][1][
                                                                 'distance'] +
-                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current']))
+                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current'])
+                    bot.send_message(user_message.chat.id, expensive_hotels_photo)
                 else:
-                    bot.send_message(user_message.chat.id, (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
+                    expensive_hotels_photo = (str(i + 1) + ' отель: \nНазвание: ' + result[i]["name"] +
                                                             '\nОт ' + result[i]["landmarks"][0]['label'] + ' ' +
                                                             ' расстояние: ' + ' ' + result[i]["landmarks"][0][
                                                                 'distance'] +
                                                             '\nОт ' + result[i]["landmarks"][1]['label'] + ' ' +
                                                             ' расстояние: ' + ' ' + result[i]["landmarks"][1][
                                                                 'distance'] +
-                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current']))
+                                                            '\nЦена: ' + result[i]['ratePlan']['price']['current'])
+                    bot.send_message(user_message.chat.id, expensive_hotels_photo)
 
-                url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
+
                 querystring = {"id": data['data']['body']["searchResults"]["results"][i]["id"]}
-                headers = {
-                    'x-rapidapi-host': "hotels4.p.rapidapi.com",
-                    'x-rapidapi-key': "c69c1872abmshf497846dcd25465p192f04jsn091745b8c356"
-                }
-                response_photo = requests.request("GET", url, headers=headers, params=querystring)
+
+                response_photo = requests.request("GET", url_get_photos, headers=config.headers, params=querystring)
                 data_photo = json.loads(response_photo.text)
 
                 media = []
                 for j in range(int(user_info['num_photo'])):
-                    media.append(InputMediaPhoto((data_photo["hotelImages"][j]['baseUrl']).format(size= 'z')))
+                    media.append(InputMediaPhoto((data_photo["hotelImages"][j]['baseUrl']).format(size='z')))
                 bot.send_media_group(user_message.chat.id, media)
-
 
     main(user_message)

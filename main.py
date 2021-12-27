@@ -1,6 +1,7 @@
 import telebot
 from lowprice import lowprice_func
 from highprice import highprice_func
+from bestdeal import bestdeal_func
 import config
 
 bot = telebot.TeleBot(config.token)
@@ -31,7 +32,7 @@ def highprice_command(message):
 def bestdeal_command(message):
     """Функция /bestdeal, выводит список отелей,
     наиболее подходящих по цене и расположению"""
-    bot.send_message(message.chat.id, 'Самые подходящие отели')
+    bestdeal_func(bot, message)
 
 
 @bot.message_handler(commands=['history'])
