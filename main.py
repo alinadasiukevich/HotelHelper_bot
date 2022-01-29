@@ -1,22 +1,35 @@
 import telebot
-from lowprice import lowprice_func
-from highprice import highprice_func
-from bestdeal import bestdeal_func
-from history import history_func
+import lowprice
+import highprice
+import bestdeal
+
 from start import start_func
-import sqlite3
-import config
+from dotenv import load_dotenv
+import os
+from peewee import *
+
+load_dotenv()
+bot = telebot.TeleBot(os.getenv('token'))
+
+db = SqliteDatabase('hist.db')  # Создали объект базы данных
 
 
-bot = telebot.TeleBot(config.token)
-db = sqlite3.connect('history.db', check_same_thread=False)
-sql = db.cursor()
-sql.execute("""CREATE TABLE IF NOT EXISTS commands (
-        command TEXT,
-        date_time NUMERIC,
-        result BLOB
-        )""")
-db.commit()
+# Создали класс, чтобы наследовать от него все таблицы базы данных
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class User(BaseModel):
+    # В классе описываем таблицу в базе данных
+    name = CharField()
+    telegram_id = IntegerField()
+    date_info = CharField()
+    hotel_results = CharField()
+
+
+User.create_table()
+
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
@@ -27,26 +40,27 @@ def start_command(message):
 @bot.message_handler(commands=['lowprice'])
 def lowprice_command(message):
     """Функция /lowprice, выводит список самых дешевых отелей"""
-    lowprice_func(bot, message, sql)
+    lowprice.lowprice_func(bot, message, User)
 
 
 @bot.message_handler(commands=['highprice'])
 def highprice_command(message):
     """Функция /highprice, выводит список самых дорогих отелей"""
-    highprice_func(bot, message, sql)
+    highprice.highprice_func(bot, message, User)
 
 
 @bot.message_handler(commands=['bestdeal'])
 def bestdeal_command(message):
     """Функция /bestdeal, выводит список отелей,
     наиболее подходящих по цене и расположению"""
-    bestdeal_func(bot, message, sql)
+    bestdeal.bestdeal_func(bot, message, User)
 
 
 @bot.message_handler(commands=['history'])
 def history_command(message):
     """Функция /history, выводит историю запросов пользователя"""
-    history_func(bot, message, sql)
+    for user_id in User.select():
+        bot.send_message(message.chat.id, user_id.name + '\n' + user_id.date_info + '\n' + user_id.hotel_results)
 
 
 @bot.message_handler(commands=['help'])
@@ -70,4 +84,4 @@ def error_command(message):
 
 if __name__ == '__main__':
     """Запуск телеграм-бота"""
-    bot.polling(none_stop=True, interval=0)
+    bot.polling(none_stop=True)
