@@ -28,7 +28,8 @@ class User(BaseModel):
     hotel_results = CharField()
 
 
-User.create_table()
+with db:
+    User.create_table()
 
 
 @bot.message_handler(commands=['start'])
@@ -40,27 +41,28 @@ def start_command(message):
 @bot.message_handler(commands=['lowprice'])
 def lowprice_command(message):
     """Функция /lowprice, выводит список самых дешевых отелей"""
-    lowprice.lowprice_func(bot, message, User)
+    lowprice.lowprice_func(bot, message, User, db)
 
 
 @bot.message_handler(commands=['highprice'])
 def highprice_command(message):
     """Функция /highprice, выводит список самых дорогих отелей"""
-    highprice.highprice_func(bot, message, User)
+    highprice.highprice_func(bot, message, User, db)
 
 
 @bot.message_handler(commands=['bestdeal'])
 def bestdeal_command(message):
     """Функция /bestdeal, выводит список отелей,
     наиболее подходящих по цене и расположению"""
-    bestdeal.bestdeal_func(bot, message, User)
+    bestdeal.bestdeal_func(bot, message, User, db)
 
 
 @bot.message_handler(commands=['history'])
 def history_command(message):
     """Функция /history, выводит историю запросов пользователя"""
-    for user_id in User.select():
-        bot.send_message(message.chat.id, user_id.name + '\n' + user_id.date_info + '\n' + user_id.hotel_results)
+    with db:
+        for user_id in User.select():
+            bot.send_message(message.chat.id, user_id.name + '\n' + user_id.date_info + '\n' + user_id.hotel_results)
 
 
 @bot.message_handler(commands=['help'])

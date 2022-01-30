@@ -11,7 +11,7 @@ LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
 translator = Translator()
 
 
-def bestdeal_func(bot, user_message, User):
+def bestdeal_func(bot, user_message, User, db):
     """Функция, получает название города
 
     user_message (str): команда /bestdeal"""
@@ -22,10 +22,10 @@ def bestdeal_func(bot, user_message, User):
     user.time_of_use = datetime.today()
     bot.send_message(user_message.from_user.id, 'Введите город, в котором ищите отель: ')
 
-    bot.register_next_step_handler(user_message, check_in_dates, bot, User)
+    bot.register_next_step_handler(user_message, check_in_dates, bot, User, db)
 
 
-def check_in_dates(user_message, bot, User):
+def check_in_dates(user_message, bot, User, db):
     """Функция, получает желаемую дату заезда
 
     user_message (str): название города"""
@@ -52,11 +52,11 @@ def check_in_dates(user_message, bot, User):
             bot.edit_message_text(f"Дата заезда {result}",
                                              c.message.chat.id,
                                              c.message.message_id)
-            check_out_dates(user_message, bot, User)
+            check_out_dates(user_message, bot, User, db)
     start(user_message)
 
 
-def check_out_dates(user_message, bot, User):
+def check_out_dates(user_message, bot, User, db):
     """Функция, получает желаемую дату выезда
 
     user_message (str): дата заезда"""
@@ -82,11 +82,11 @@ def check_out_dates(user_message, bot, User):
             bot.edit_message_text(f"Дата выезда {result}",
                                               c.message.chat.id,
                                               c.message.message_id)
-            min_price(user_message, bot, User)
+            min_price(user_message, bot, User, db)
     start1(user_message)
 
 
-def min_price(user_message, bot, User):
+def min_price(user_message, bot, User, db):
     """Функция, получает минимальную цену в долларах
 
     user_message(str): дата выезда"""
@@ -94,10 +94,10 @@ def min_price(user_message, bot, User):
     user = Users.get_user(user_id)
     bot.send_message(user_message.from_user.id,
                               'Введите минимальную цену отеля за сутки, подходящую для вас (в $) ')
-    bot.register_next_step_handler(user_message, max_price, bot, User)
+    bot.register_next_step_handler(user_message, max_price, bot, User, db)
 
 
-def max_price(user_message, bot, User):
+def max_price(user_message, bot, User, db):
     """Функция, получает максимальную цену в долларах
 
     user_message(int): Минимальная цена """
@@ -106,10 +106,10 @@ def max_price(user_message, bot, User):
     user.price_min = user_message.text
     bot.send_message(user_message.from_user.id,
                                          'Введите максимальную цену отеля за сутки, подходящую для вас (в $) ')
-    bot.register_next_step_handler(user_message, min_distance, bot, User)
+    bot.register_next_step_handler(user_message, min_distance, bot, User, db)
 
 
-def min_distance(user_message, bot, User):
+def min_distance(user_message, bot, User, db):
     """Функция, получает минимальное расстояние в км.
 
     user_message(int): Максимальная цена """
@@ -119,13 +119,13 @@ def min_distance(user_message, bot, User):
     if int(user.price_min) > int(user.price_max):
         bot.send_message(user_message.chat.id, 'Максимальная цена не может быть меньше минимальной.'
                                                'Попробуйте еще раз.')
-        return min_price(user_message, bot, User)
+        return min_price(user_message, bot, User, db)
     bot.send_message(user_message.from_user.id,
                                 'Введите минимальное расстояние отеля от центра, подходящее для вас (в км.) ')
-    bot.register_next_step_handler(user_message, max_distance, bot, User)
+    bot.register_next_step_handler(user_message, max_distance, bot, User, db)
 
 
-def max_distance(user_message, bot, User):
+def max_distance(user_message, bot, User, db):
     """Функция, получает максимальное расстояние в км.
 
     user_message(float): минимальное расстояние """
@@ -134,10 +134,10 @@ def max_distance(user_message, bot, User):
     user.distance_min = user_message.text
     bot.send_message(user_message.from_user.id,
                                 'Введите максимальное расстояние отеля от центра, подходящее для вас (в км.) ')
-    bot.register_next_step_handler(user_message, hotel_count, bot, User)
+    bot.register_next_step_handler(user_message, hotel_count, bot, User, db)
 
 
-def hotel_count(user_message, bot, User):
+def hotel_count(user_message, bot, User, db):
     """Функция, получает количество отелей
 
     user_message(float): максимальное расстояние"""
@@ -147,13 +147,13 @@ def hotel_count(user_message, bot, User):
     if float(user.distance_min) > float(user.distance_max):
         bot.send_message(user_message.chat.id, 'Максимальное расстояние не может быть меньше минимального.'
                                                'Попробуйте еще раз.')
-        return min_distance(user_message, bot, User)
+        return min_distance(user_message, bot, User, db)
     bot.send_message(user_message.from_user.id,
                               'Введите количество отелей, которые необходимо вывести в результате (не больше 5): ')
-    bot.register_next_step_handler(user_message, photos, bot, User)
+    bot.register_next_step_handler(user_message, photos, bot, User, db)
 
 
-def photos(user_message, bot, User):
+def photos(user_message, bot, User, db):
     """Функция, проверяет правильность введенного количества отелей,
     а также запрашивает информацию о необходимости фотографий
 
@@ -163,13 +163,13 @@ def photos(user_message, bot, User):
     HOTELS_NUM = int(user_message.text)
     if HOTELS_NUM > 5:
         bot.send_message(user_message.chat.id, 'Вы ввели неправильное число.')
-        return hotel_count(user_message, bot, User)
+        return hotel_count(user_message, bot, User, db)
     user.hotel_count = user_message.text
     bot.send_message(user_message.chat.id, 'Вам нужны фотографии отеля? (“Да/Нет”): ')
-    bot.register_next_step_handler(user_message, num_photo, bot, User)
+    bot.register_next_step_handler(user_message, num_photo, bot, User, db)
 
 
-def num_photo(user_message, bot, User):
+def num_photo(user_message, bot, User, db):
     """Функция, в случае необходимости, узнает необходимое количество
     фотографий, если фотографии не нужны, выводит результат
     работы телграм-бота без фотографий
@@ -182,7 +182,7 @@ def num_photo(user_message, bot, User):
         photo_num = bot.send_message(user_message.from_user.id,
                                      'Введите количество фотографий, '
                                      'которые необходимо вывести в результате (не больше 5): ')
-        bot.register_next_step_handler(photo_num, result_with_photo, bot, User)
+        bot.register_next_step_handler(photo_num, result_with_photo, bot, User, db)
     else:
         bot.send_message(user_message.chat.id, 'Ищем отели по вашим критериям.'
                                                '\nЭто может занять немного времени.')
@@ -190,7 +190,7 @@ def num_photo(user_message, bot, User):
 
         querystring = {"query": user.city}
 
-        response = api.get_location(querystring)
+        response = api.request_to_api(api.url_locations, api.headers, querystring)
         pattern = r'(?<="CITY_GROUP",).+?[\]]'
         find = re.search(pattern, response.text)
         if find:
@@ -201,7 +201,7 @@ def num_photo(user_message, bot, User):
                        "priceMin": user.price_min, "priceMax": user.price_max,
                        "sortOrder": "DISTANCE_FROM_LANDMARK", "locale": "ru_RU", "currency": "USD"}
 
-        hotel_response = api.get_properties(querystring)
+        hotel_response = api.request_to_api(api.url_properties, api.headers, querystring)
         pattern = r'(?<=,)"results":.+?(?=,"pagination")'
         find_hotel = re.search(pattern, hotel_response.text)
         if find_hotel:
@@ -224,10 +224,11 @@ def num_photo(user_message, bot, User):
                  '\nЦена за сутки: ' + result[i]["ratePlan"]['price']['current'])
                 user.hotels_res.append(result[i]["name"])
                 bot.send_message(user_message.chat.id, deal_hotels)
-        User.create(name=user.command, telegram_id=user.user_id,date_info=user.time_of_use, hotel_results=str(user.hotels_res))
+        with db:
+            User.create(name=user.command, telegram_id=user.user_id, date_info=user.time_of_use, hotel_results=str(user.hotels_res))
 
 
-def result_with_photo(user_message, bot, User):
+def result_with_photo(user_message, bot, User, db):
     """Функция, проверяет правильность введенного количества фотографий,
     в случае правильного ввода, выводит результат работы телеграм-бота
     с фотографиями
@@ -241,7 +242,7 @@ def result_with_photo(user_message, bot, User):
         bot.send_message(user_message.from_user.id,
                                      'Введите количество фотографий, '
                                      'которые необходимо вывести в результате (не больше 5): ')
-        bot.register_next_step_handler(user_message, result_with_photo, bot, User)
+        bot.register_next_step_handler(user_message, result_with_photo, bot, User, db)
     else:
         bot.send_message(user_message.chat.id, 'Ищем отели по вашим критериям.'
                                                '\nЭто может занять немного времени.')
@@ -249,7 +250,7 @@ def result_with_photo(user_message, bot, User):
 
         querystring = {"query": user.city}
 
-        response = api.get_location(querystring)
+        response = api.request_to_api(api.url_locations, api.headers, querystring)
         pattern = r'(?<="CITY_GROUP",).+?[\]]'
         find = re.search(pattern, response.text)
         if find:
@@ -260,7 +261,7 @@ def result_with_photo(user_message, bot, User):
                        "priceMin": user.price_min, "priceMax": user.price_max,
                        "sortOrder": "DISTANCE_FROM_LANDMARK", "locale": "ru_RU", "currency": "USD"}
 
-        hotel_response = api.get_properties(querystring)
+        hotel_response = api.request_to_api(api.url_properties, api.headers, querystring)
         pattern = r'(?<=,)"results":.+?(?=,"pagination")'
         find_hotel = re.search(pattern, hotel_response.text)
         if find_hotel:
@@ -285,7 +286,7 @@ def result_with_photo(user_message, bot, User):
                 user.hotels_res.append(result[i]["name"])
                 bot.send_message(user_message.chat.id, cheap_hotels_photo)
             querystring = {"id": data['data']['body']["searchResults"]["results"][i]["id"]}
-            response_photo = api.get_photos(querystring)
+            response_photo = api.request_to_api(api.url_get_photos, api.headers, querystring)
             pattern = r'(?<=,)"hotelImages":.+?(?=,"roomImages")'
             find = re.search(pattern, response_photo.text)
             if find:
@@ -294,5 +295,6 @@ def result_with_photo(user_message, bot, User):
             for j in range(int(user.num_photo)):
                 media.append(InputMediaPhoto((data_photo["hotelImages"][j]['baseUrl']).format(size='z')))
             bot.send_media_group(user_message.chat.id, media)
-        User.create(name=user.command, telegram_id=user.user_id,
+        with db:
+            User.create(name=user.command, telegram_id=user.user_id,
                     date_info=user.time_of_use, hotel_results=str(user.hotels_res))
